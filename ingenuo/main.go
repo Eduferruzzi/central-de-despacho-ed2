@@ -46,6 +46,9 @@ var (
 	chamados  []Chamado
 )
 
+// Tamanho das seções
+const TAM_SECAO = 60
+
 // lerCampos lê a próxima linha da entrada e a divide em campos.
 // Devolve nil quando a entrada termina.
 func lerCampos() []string {
