@@ -19,6 +19,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"bot/tabela"
 )
 
 type Chamado struct {
@@ -26,6 +27,10 @@ type Chamado struct {
 	X, Y  int
 	Valor int
 	Prazo int
+	Expirou bool
+	Atribuido bool
+	HospProx int
+	DistHosp int
 }
 
 type Ambulancia struct {
@@ -41,13 +46,35 @@ type Hospital struct {
 var (
 	leitor   *bufio.Scanner
 	escritor *bufio.Writer
-
 	hospitais []Hospital
 	chamados  []Chamado
+	
+	totalTurnos int
+	largura, altura int
+
+	indice *tabela.Tabela // Indice da tabela hash
+
+	// Slice para armazenar os chamados no turno em que eles expiram
+	expiraEm [][]int 
+
+	//
+	alvos[]int
+
+	// Seções para dividir o mapa em blocos TAM_SECAO x TAM_SECAO
+	secoes [][][]int // Seções do mapa, X, Y, IDs dos chamados
+	linhas, colunas int // Quantidade de linhas e colunas na divisão do mapa 
 )
 
 // Tamanho das seções
-const TAM_SECAO = 60
+const TAM_SECAO = 50
+
+// 
+func calcularSecao(y, x int) (int, int) {
+	linha := y/TAM_SECAO
+	coluna := x/TAM_SECAO
+
+	return linha, coluna
+}
 
 // lerCampos lê a próxima linha da entrada e a divide em campos.
 // Devolve nil quando a entrada termina.
@@ -96,15 +123,24 @@ func direcao(x, y, alvoX, alvoY int) string {
 // lerInicio lê a mensagem de início. Este bot só usa os hospitais; os
 // bloqueios são lidos e descartados.
 func lerInicio() {
-	lerCampos() // INICIO largura altura turnos limite_turno limite_preparo equipe num_equipes
+	c := lerCampos() // INICIO largura altura turnos limite_turno limite_preparo equipe num_equipes
+	
+	largura = inteiro(c[1])
+	altura = inteiro(c[2])
+	linhas = altura / TAM_SECAO
+	colunas = largura / TAM_SECAO
+
+	totalTurnos = inteiro(c[3])
 	h := inteiro(lerCampos()[1])
 	for i := 0; i < h; i++ {
 		c := lerCampos()
 		hospitais = append(hospitais, Hospital{inteiro(c[0]), inteiro(c[1])})
 	}
 	k := inteiro(lerCampos()[1])
+	alvos = make([]int, k)
 	for i := 0; i < k; i++ {
 		lerCampos() // id x y
+		alvos[i] = -1
 	}
 	b := inteiro(lerCampos()[1])
 	for i := 0; i < b; i++ {
@@ -127,35 +163,105 @@ func removerPorID(id int) {
 
 // removerExpirados mantém só os chamados com prazo maior ou igual ao turno.
 func removerExpirados(turno int) {
-	vivos := chamados[:0]
-	for _, c := range chamados {
-		if c.Prazo >= turno {
-			vivos = append(vivos, c)
+	chamadosExpirados := expiraEm[turno]
+	for _, pos := range chamadosExpirados {
+		indice.Remove(chamados[pos].ID)
+		chamados[pos].Expirou = true
+	}
+	expiraEm = nil
+}
+
+//
+func acharHospProx(x, y int) (int, int) {
+	melhor := 0
+	distanciaMelhor := distancia(x, y, hospitais[melhor].X, hospitais[melhor].Y)
+	for i, h := range hospitais{
+		distancia := distancia(x, y, h.X, h.Y)
+		if distancia < distanciaMelhor {
+			melhor = i
+			distanciaMelhor = distancia
 		}
 	}
-	chamados = vivos
+	return melhor, distanciaMelhor
+}
+
+func custoBeneficio(pos, dist int) float64 {
+	return float64(chamados[pos].Valor)/float64(dist + chamados[pos].DistHosp + 1)
+}
+
+func daPraChegar(x, y, pos, turno int) (bool, int){
+	dist := distancia(x, y, chamados[pos].X, chamados[pos].Y)
+	da := dist <= chamados[pos].Prazo - turno + 1
+	return da, dist
+}
+
+func acharMelhorChamado(x, y, turno int) int {
+	linhaAmbulancia, colunaAmbulancia := calcularSecao(y, x)
+	melhor, melhorCB := -1, -1.0
+
+	for offy := -1; offy <= 1; offy++ {
+		linhaAtual := linhaAmbulancia + offy
+		if (linhaAtual < 0 || linhaAtual > linhas) {
+			continue
+		}
+		for offx := -1; offx <=1; offx++ {
+			colunaAtual := colunaAmbulancia + offx
+			if (colunaAtual < 0 || colunaAtual > colunas) {
+				continue
+			}
+			melhor, melhorCB = varrerSecao(x, y, turno, linhaAtual, colunaAtual, melhor, melhorCB)
+		}
+	}
+	return melhor
+}
+
+func varrerSecao(x, y, turno, linha, coluna, melhor int, melhorCB float64) (int, float64) {
+	secaoAtual := secoes[linha][coluna]
+	for i := 0; i < len(secaoAtual); i++ {
+		pos := secaoAtual[i]
+		chamado := chamados[pos]
+		if chamado.Expirou {
+			secaoAtual[i] = secaoAtual[len(secaoAtual)-1]
+			secaoAtual = secaoAtual[:len(secaoAtual)-1]
+			i--
+			continue
+		} else {
+			da, dist := daPraChegar(x, y, pos, turno)
+			if !chamado.Atribuido && da {
+				cb := custoBeneficio(pos, dist)
+				if cb > melhorCB {
+					melhor = pos
+					melhorCB = cb
+				}
+			}
+		}
+	}
+	secoes[linha][coluna] = secaoAtual
+	return melhor, melhorCB
 }
 
 func jogarTurno(turno int, ambulancias []Ambulancia) {
 	for _, a := range ambulancias {
 		mov := "P"
+		posAlvo := alvos[a.ID]
 		if a.Livre {
-			melhor := -1
-			for i, c := range chamados {
-				if melhor == -1 || distancia(a.X, a.Y, c.X, c.Y) < distancia(a.X, a.Y, chamados[melhor].X, chamados[melhor].Y) {
-					melhor = i
-				}
+			// Se der merda a gente muda aqui
+			posAlvo = acharMelhorChamado(a.X, a.Y, turno)
+			if posAlvo != -1 {
+				chamados[posAlvo].Atribuido = true
 			}
-			if melhor != -1 {
-				mov = direcao(a.X, a.Y, chamados[melhor].X, chamados[melhor].Y)
+
+			alvos[a.ID] = posAlvo
+
+			if posAlvo != -1 {
+				mov = direcao(a.X, a.Y, chamados[posAlvo].X, chamados[posAlvo].Y)
+			} else {
+				h, _ := acharHospProx(a.X, a.Y)
+				mov = direcao(a.X, a.Y, hospitais[h].X, hospitais[h].Y)
 			}
 		} else {
-			melhor := 0
-			for i, h := range hospitais {
-				if distancia(a.X, a.Y, h.X, h.Y) < distancia(a.X, a.Y, hospitais[melhor].X, hospitais[melhor].Y) {
-					melhor = i
-				}
-			}
+			alvos[a.ID] = -1
+			melhor := chamados[posAlvo].HospProx
 			mov = direcao(a.X, a.Y, hospitais[melhor].X, hospitais[melhor].Y)
 		}
 		fmt.Fprintln(escritor, a.ID, mov)
@@ -170,6 +276,20 @@ func main() {
 	escritor = bufio.NewWriter(os.Stdout)
 
 	lerInicio()
+
+	// Preprocessamento
+	// Cria a tabela hash para armazenar as posições dos chamados
+	indice = tabela.Nova(2000003)
+
+	// Inicializa as seções do mapa
+	secoes = make([][][]int, linhas)
+	for i := 0; i < linhas; i++ {
+		secoes[i] = make([][]int, colunas)
+	}
+
+	// Inicializa o slice de chamados que expiram em cada turno
+	expiraEm = make([][]int, totalTurnos+1) // +1 para incluir o último turno
+
 	fmt.Fprintln(escritor, "PRONTO")
 	escritor.Flush()
 
@@ -183,12 +303,36 @@ func main() {
 		n := inteiro(lerCampos()[1]) // CHAMADOS n
 		for i := 0; i < n; i++ {
 			c := lerCampos()
-			chamados = append(chamados, Chamado{inteiro(c[0]), inteiro(c[1]), inteiro(c[2]), inteiro(c[3]), inteiro(c[4])})
+			chamados = append(chamados, Chamado{inteiro(c[0]), inteiro(c[1]), inteiro(c[2]),
+												inteiro(c[3]), inteiro(c[4]), false,
+												false, -1, -1})
+			pos := len(chamados)-1									
+			chamado := chamados[pos]
+
+			// Insere no slice para expiração
+			if chamado.Prazo < totalTurnos {
+				expiraEm[chamado.Prazo+1] = append(expiraEm[chamado.Prazo+1], pos)
+			}
+			
+			// Insere na tabela hash
+			indice.Insere(chamado.ID, pos)
+
+			// Insere na sua respectiva seção do mapa
+			linha, coluna := calcularSecao(chamado.Y, chamado.X)
+			secoes[linha][coluna] = append(secoes[linha][coluna], pos)
+
+			// Inicializa os atributos de hospital mais próximo e distância até esse hospital
+			chamados[pos].HospProx, chamados[pos].DistHosp = acharHospProx(chamado.X, chamado.Y)
 		}
 
 		r := inteiro(lerCampos()[1]) // RECOLHIDOS r
 		for i := 0; i < r; i++ {
-			removerPorID(inteiro(lerCampos()[0]))
+			id := inteiro(lerCampos()[0])
+			pos, ok := indice.Busca(id)
+			if (ok){
+				chamados[pos].Expirou = true
+				indice.Remove(id)
+			}
 		}
 		removerExpirados(turno)
 
