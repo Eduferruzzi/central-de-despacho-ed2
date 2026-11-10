@@ -14,12 +14,13 @@
 package main
 
 import (
+	"bot/tabela"
 	"bufio"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
-	"bot/tabela"
 )
 
 type Chamado struct {
@@ -273,7 +274,7 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 			}
 		} else {
 			alvos[a.ID] = -1
-			melhor := chamados[posAlvo].HospProx
+			melhor, _ := acharHospProx(a.X, a.Y)
 			mov = direcao(a.X, a.Y, hospitais[melhor].X, hospitais[melhor].Y)
 		}
 		fmt.Fprintln(escritor, a.ID, mov)
@@ -283,6 +284,15 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 }
 
 func main() {
+	defer func() {
+		if r := recover(); r != nil {
+			f, _ := os.Create("erro_bot.txt")
+			fmt.Fprintf(f, "%v\n%s", r, debug.Stack())
+			f.Close()
+			panic(r)
+		}
+	}()
+
 	leitor = bufio.NewScanner(os.Stdin)
 	leitor.Buffer(make([]byte, 1<<16), 1<<20)
 	escritor = bufio.NewWriter(os.Stdout)
