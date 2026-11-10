@@ -46,6 +46,7 @@ type Hospital struct {
 var (
 	leitor   *bufio.Scanner
 	escritor *bufio.Writer
+	
 	hospitais []Hospital
 	chamados  []Chamado
 	
@@ -67,14 +68,6 @@ var (
 
 // Tamanho das seções
 const TAM_SECAO = 50
-
-// 
-func calcularSecao(y, x int) (int, int) {
-	linha := y/TAM_SECAO
-	coluna := x/TAM_SECAO
-
-	return linha, coluna
-}
 
 // lerCampos lê a próxima linha da entrada e a divide em campos.
 // Devolve nil quando a entrada termina.
@@ -151,24 +144,34 @@ func lerInicio() {
 
 // removerPorID procura o chamado no slice e o remove, trocando-o pelo
 // último elemento. Custo: proporcional ao número de chamados abertos.
-func removerPorID(id int) {
-	for i := range chamados {
-		if chamados[i].ID == id {
-			chamados[i] = chamados[len(chamados)-1]
-			chamados = chamados[:len(chamados)-1]
-			return
-		}
-	}
+// func removerPorID(id int) {
+// 	for i := range chamados {
+// 		if chamados[i].ID == id {
+// 			chamados[i] = chamados[len(chamados)-1]
+// 			chamados = chamados[:len(chamados)-1]
+// 			return
+// 		}
+// 	}
+// }
+
+// 
+func calcularSecao(y, x int) (int, int) {
+	linha := y/TAM_SECAO
+	coluna := x/TAM_SECAO
+
+	return linha, coluna
 }
 
 // removerExpirados mantém só os chamados com prazo maior ou igual ao turno.
 func removerExpirados(turno int) {
-	chamadosExpirados := expiraEm[turno]
-	for _, pos := range chamadosExpirados {
-		indice.Remove(chamados[pos].ID)
-		chamados[pos].Expirou = true
-	}
-	expiraEm = nil
+	chamadosExpirados := expiraEm[turno-1]
+	if turno-1 >= 1 {
+		for _, pos := range chamadosExpirados {
+			indice.Remove(chamados[pos].ID)
+			chamados[pos].Expirou = true
+		}
+		expiraEm[turno-1] = nil
+	} 
 }
 
 //
@@ -329,7 +332,7 @@ func main() {
 		for i := 0; i < r; i++ {
 			id := inteiro(lerCampos()[0])
 			pos, ok := indice.Busca(id)
-			if (ok){
+			if ok {
 				chamados[pos].Expirou = true
 				indice.Remove(id)
 			}

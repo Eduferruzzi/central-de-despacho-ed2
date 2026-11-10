@@ -13,18 +13,18 @@ import (
 // Tabela associa chaves (ids dos chamados) a valores (índices no slice de chamados).
 // Ocupados indica se a posição da tabela está ocupada ou não.
 type Tabela struct {
-	chaves 		[]int
-	valores 	[]int
-	ocupada 	[]bool
-	n 			int // número de pares na tabela
+	chaves  []int
+	valores []int
+	ocupada []bool
+	n       int // número de pares guardados
 }
 
 // Nova cria uma nova tabela com m posições.
 func Nova(m int) *Tabela {
 	return &Tabela{
-		chaves: 	make([]int, m),
-		valores: 	make([]int, m),
-		ocupada: 	make([]bool, m),
+		chaves:  make([]int, m),
+		valores: make([]int, m),
+		ocupada: make([]bool, m),
 	}
 }
 
@@ -38,7 +38,7 @@ func (t *Tabela) m() int {
 	return len(t.chaves)
 }
 
-const misturar = false
+const misturar = true
 
 func (t *Tabela) hash(k int) int {
 	if misturar {
@@ -63,6 +63,7 @@ func mistura(k int) int {
 
 // distancia devolve quantos passos a sondagem linear dá da posição de até a
 // posição ate, dando a volta no fim do vetor quando ate vem antes de de.
+// Com m = 11: distancia(9, 1) = 3, porque a sondagem passa por 9, 10, 0 e 1.
 func (t *Tabela) distancia(de, ate int) int {
 	return (ate - de + t.m()) % t.m()
 }
