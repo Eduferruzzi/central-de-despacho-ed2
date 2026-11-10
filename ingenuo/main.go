@@ -160,6 +160,13 @@ func calcularSecao(y, x int) (int, int) {
 	linha := y/TAM_SECAO
 	coluna := x/TAM_SECAO
 
+	// garantia que a coordenada fique em uma seção no mapa, protege contra as cordenadas nas pontas do mapa
+	if linha >= linhas {
+		linha = linhas - 1
+	}
+		coluna = colunas - 1
+	}
+
 	return linha, coluna
 }
 
@@ -203,14 +210,16 @@ func acharMelhorChamado(x, y, turno int) int {
 	linhaAmbulancia, colunaAmbulancia := calcularSecao(y, x)
 	melhor, melhorCB := -1, -1.0
 
+	//correção de verificação dos limites, aqui q tava o erro, tipo se linhas = 20, a condição liberava, o cod ia executar
+	// secoes[linha][coluna] e dava erro pq não existia a linha 20, só até 19, o cenario peqeuno n rodava por causa disso
 	for offy := -1; offy <= 1; offy++ {
 		linhaAtual := linhaAmbulancia + offy
-		if (linhaAtual < 0 || linhaAtual > linhas) {
+		if linhaAtual < 0 || linhaAtual >= linhas {
 			continue
 		}
 		for offx := -1; offx <=1; offx++ {
 			colunaAtual := colunaAmbulancia + offx
-			if (colunaAtual < 0 || colunaAtual > colunas) {
+			if colunaAtual < 0 || colunaAtual >= colunas {
 				continue
 			}
 			melhor, melhorCB = varrerSecao(x, y, turno, linhaAtual, colunaAtual, melhor, melhorCB)
@@ -301,7 +310,7 @@ func main() {
 
 	// Preprocessamento
 	// Cria a tabela hash para armazenar as posições dos chamados
-	indice = tabela.Nova(2000003)
+	indice = tabela.Nova(1000003)
 
 	// Inicializa as seções do mapa
 	secoes = make([][][]int, linhas)
