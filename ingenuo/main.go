@@ -284,8 +284,8 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 		} else {
 			if (posAlvo != -1) {
 				chamados[posAlvo].Atribuido = false
-				alvos[a.ID] = -1
 			}
+			alvos[a.ID] = -1
 			melhor, _ := acharHospProx(a.X, a.Y)
 			mov = direcao(a.X, a.Y, hospitais[melhor].X, hospitais[melhor].Y)
 		}
