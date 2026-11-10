@@ -248,10 +248,19 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 		mov := "P"
 		posAlvo := alvos[a.ID]
 		if a.Livre {
-			// Se der merda a gente muda aqui
-			posAlvo = acharMelhorChamado(a.X, a.Y, turno)
 			if posAlvo != -1 {
-				chamados[posAlvo].Atribuido = true
+				d := distancia(a.X, a.Y, chamados[posAlvo].X, chamados[posAlvo].Y)
+				if chamados[posAlvo].Expirou || d > chamados[posAlvo].Prazo - turno + 1 {
+					chamados[posAlvo].Atribuido = false
+					posAlvo = -1
+				}
+			}
+
+			if posAlvo == -1 {
+				posAlvo = acharMelhorChamado(a.X, a.Y, turno)
+				if posAlvo != -1 {
+					chamados[posAlvo].Atribuido = true
+				}
 			}
 
 			alvos[a.ID] = posAlvo
