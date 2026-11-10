@@ -17,8 +17,8 @@ import (
 	"bot/tabela"
 	"bufio"
 	"fmt"
+	"math"
 	"os"
-	"runtime/debug"
 	"strconv"
 	"strings"
 )
@@ -30,7 +30,6 @@ type Chamado struct {
 	Prazo int
 	Expirou bool
 	Atribuido bool
-	HospProx int
 	DistHosp int
 }
 
@@ -68,7 +67,7 @@ var (
 )
 
 // Tamanho das seções
-const TAM_SECAO = 50
+const TAM_SECAO = 25
 
 // lerCampos lê a próxima linha da entrada e a divide em campos.
 // Devolve nil quando a entrada termina.
@@ -164,6 +163,7 @@ func calcularSecao(y, x int) (int, int) {
 	if linha >= linhas {
 		linha = linhas - 1
 	}
+	if coluna >= colunas {
 		coluna = colunas - 1
 	}
 
@@ -197,7 +197,7 @@ func acharHospProx(x, y int) (int, int) {
 }
 
 func custoBeneficio(pos, dist int) float64 {
-	return float64(chamados[pos].Valor)/float64(dist + chamados[pos].DistHosp + 1)
+	return math.Pow(float64(chamados[pos].Valor), 0.7)/float64(dist + chamados[pos].DistHosp + 1)
 }
 
 func daPraChegar(x, y, pos, turno int) (bool, int){
@@ -282,7 +282,10 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 				mov = direcao(a.X, a.Y, hospitais[h].X, hospitais[h].Y)
 			}
 		} else {
-			alvos[a.ID] = -1
+			if (posAlvo != -1) {
+				chamados[posAlvo].Atribuido = false
+				alvos[a.ID] = -1
+			}
 			melhor, _ := acharHospProx(a.X, a.Y)
 			mov = direcao(a.X, a.Y, hospitais[melhor].X, hospitais[melhor].Y)
 		}
@@ -293,15 +296,6 @@ func jogarTurno(turno int, ambulancias []Ambulancia) {
 }
 
 func main() {
-	defer func() {
-		if r := recover(); r != nil {
-			f, _ := os.Create("erro_bot.txt")
-			fmt.Fprintf(f, "%v\n%s", r, debug.Stack())
-			f.Close()
-			panic(r)
-		}
-	}()
-
 	leitor = bufio.NewScanner(os.Stdin)
 	leitor.Buffer(make([]byte, 1<<16), 1<<20)
 	escritor = bufio.NewWriter(os.Stdout)
@@ -336,7 +330,7 @@ func main() {
 			c := lerCampos()
 			chamados = append(chamados, Chamado{inteiro(c[0]), inteiro(c[1]), inteiro(c[2]),
 												inteiro(c[3]), inteiro(c[4]), false,
-												false, -1, -1})
+												false, -1})
 			pos := len(chamados)-1									
 			chamado := chamados[pos]
 
@@ -353,7 +347,7 @@ func main() {
 			secoes[linha][coluna] = append(secoes[linha][coluna], pos)
 
 			// Inicializa os atributos de hospital mais próximo e distância até esse hospital
-			chamados[pos].HospProx, chamados[pos].DistHosp = acharHospProx(chamado.X, chamado.Y)
+			_, chamados[pos].DistHosp = acharHospProx(chamado.X, chamado.Y)
 		}
 
 		r := inteiro(lerCampos()[1]) // RECOLHIDOS r
