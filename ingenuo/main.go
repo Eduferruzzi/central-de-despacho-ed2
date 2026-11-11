@@ -63,7 +63,7 @@ var (
 	alvos []int
 
 	// Seções para dividir o mapa em blocos TAM_SECAO x TAM_SECAO
-	secoes          [][][]int // Seções do mapa, X, Y, IDs dos chamados
+	secoes          [][][]int // Seções do mapa, X, Y, posicão dos chamados no slice de chamados
 	linhas, colunas int       // Quantidade de linhas e colunas na divisão do mapa
 )
 
