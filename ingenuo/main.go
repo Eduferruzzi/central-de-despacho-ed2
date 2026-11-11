@@ -177,7 +177,7 @@ func calcularSecao(y, x int) (int, int) {
 }
 
 // removerExpirados mantém só os chamados com prazo maior ou igual ao turno.
-// Acessa o slice expiraEm[turno-1] para obter todos que expiram nesse turno e marca Expirou como true e remove da tabela hash.
+// Acessa o slice expiraEm[turno-1] para obter todos que expiram nesse turno, marca Expirou como true e remove da tabela hash.
 func removerExpirados(turno int) {
 	chamadosExpirados := expiraEm[turno-1]
 	if turno-1 >= 1 {

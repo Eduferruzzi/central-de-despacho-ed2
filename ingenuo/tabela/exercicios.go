@@ -71,7 +71,6 @@ func (t *Tabela) redimensiona(m int) {
 // buraco está no caminho que a sondagem fez de h até j. Use a distancia de
 // tabela.go para escrever essa condição sem tratar a volta no fim do vetor
 // como caso à parte.
-
 func (t *Tabela) Remove(k int) bool {
 	i := t.hash(k)
 
