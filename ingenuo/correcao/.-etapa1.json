@@ -20,7 +20,7 @@
       "criterio": "p99 do processador por turno até 4,0 vezes o do bot indexado (mediana de 10 partidas do cenário estresse), sem passar do teto em mais de 10 turnos por partida",
       "valor": 15,
       "pontos": 15,
-      "motivo": "razão mediana 2,1 (de 1,0 a 2,4); exigido até 4,0",
+      "motivo": "razão mediana 1,5 (de 0,9 a 2,1); exigido até 4,0",
       "pontuacao": false
     },
     {
@@ -55,5 +55,5 @@
     9,
     10
   ],
-  "quando": "10/11/2026 20:29"
+  "quando": "11/11/2026 00:39"
 }

@@ -1,7 +1,7 @@
 // Arquivo para difinição da estrutura da Tabela Hash
 // A Tabela é usada para armazenar a posição dos chamados no slice.
 // A chaves são os IDs dos chamados hashados
-// Esse arquivo foi feito se baseando no código da atividade 3 e na aula 10
+// Esse arquivo foi feito se baseando no código da atividade 3
 // As funções são iguais as que estão na tabela.go da atividade 3
 package tabela
 
@@ -38,8 +38,11 @@ func (t *Tabela) m() int {
 	return len(t.chaves)
 }
 
-const misturar = true
+// misturar = false parece desempenhar melhor ou não mudar nada
+const misturar = false
 
+// Faz o hash da chave (ID do chamado)
+// Se misturar = true, mistura os bits
 func (t *Tabela) hash(k int) int {
 	if misturar {
 		k = mistura(k)
@@ -51,6 +54,10 @@ func (t *Tabela) hash(k int) int {
 	return h
 }
 
+// mistura embaralha os bits da chave com deslocamentos, ou-exclusivos e
+// multiplicações por constantes ímpares grandes, a mesma ideia da FNV-1a.
+// Chaves vizinhas, como 1000 e 1001, saem com valores sem relação entre si.
+// Os passos e as constantes são os do gerador SplitMix64.
 func mistura(k int) int {
 	x := uint64(k)
 	x ^= x >> 30
